@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type IKKBZOrderer struct {
 	Orderer
@@ -61,6 +64,33 @@ func (o *IKKBZOrderer) RootedSelectivity(r RelationID) Selectivity {
 	return o.GetSelectivity(r, o.parents[r])
 }
 
+func (o *IKKBZOrderer) String() string {
+	if o.root == 0 {
+		panic("must root before printing")
+	}
+
+	var buf bytes.Buffer
+	o.format(o.root, &buf, 0)
+	return buf.String()
+}
+
+func (o *IKKBZOrderer) format(r RelationID, buf *bytes.Buffer, depth int) {
+	for i := 0; i < depth; i++ {
+		buf.WriteByte(' ')
+	}
+	fmt.Fprintf(buf, "(%d\n", int(r))
+	for i := range o.parents {
+		if o.parents[i] == r {
+			buf.WriteByte(' ')
+			o.format(RelationID(i), buf, depth+1)
+		}
+	}
+	for i := 0; i < depth; i++ {
+		buf.WriteByte(' ')
+	}
+	buf.WriteString(")\n")
+}
+
 // T is the T function from Ibaraki and Kameda, representing a factor which the
 // given set of relations contribute to the final row count.
 func (o *IKKBZOrderer) T(s Sequence) float64 {
@@ -109,7 +139,7 @@ func (o *IKKBZOrderer) ChildrenOf(r RelationID) []RelationID {
 func (o *IKKBZOrderer) Order() Sequence {
 	bestCost := float64(0)
 	var bestResult Sequence
-	for i := 1; i < o.numRelations; i++ {
+	for i := 1; i <= o.numRelations; i++ {
 		root := RelationID(i)
 		o.SetRoot(root)
 		result := o.solveWedge(root)
