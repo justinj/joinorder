@@ -231,11 +231,30 @@ func Test100WayJoin(t *testing.T) {
 		o.AddPredicate(RelationID(i), RelationID(other), Selectivity(selectivity))
 	}
 
-	o.SetRoot(1)
-
 	expected := `[1 2 31 57 56 68 60 72 38 13 48 77 29 88 90 35 76 69 3 7 17 51 81 24 8 9 19 27 30 36 95 46 47 5 96 33 82 64 73 53 66 97 61 75 26 45 44 52 20 21 28 63 70 39 84 42 85 67 34 93 100 10 11 32 40 65 89 18 94 14 15 78 25 98 55 86 83 43 79 91 59 23 62 4 6 71 16 12 22 49 50 80 37 41 54 87 58 92 99 74]`
 
 	if fmt.Sprintf("%v", o.Order()) != expected {
 		t.Fatalf("big join was wrong:\n%v\n%v", o.Order(), expected)
+	}
+}
+
+func Benchmark100WayJoin(b *testing.B) {
+	rand.Seed(100)
+
+	size := 100
+	o := NewIKKBZOrderer(size)
+	for i := 1; i <= size; i++ {
+		o.SetCardinality(RelationID(i), Cardinality(rand.Intn(1000000)))
+	}
+
+	for i := 2; i <= size; i++ {
+		other := rand.Intn(i-1) + 1
+		selectivity := rand.Float64()
+		o.AddPredicate(RelationID(i), RelationID(other), Selectivity(selectivity))
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		o.Order()
 	}
 }

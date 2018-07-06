@@ -11,16 +11,13 @@ type Sequence []RelationID
 type Orderer struct {
 	numRelations  int
 	cardinalities []Cardinality
-	selectivities [][]Selectivity
+	selectivities []Selectivity
 }
 
 func NewOrderer(numRelations int) *Orderer {
-	selectivities := make([][]Selectivity, numRelations)
+	selectivities := make([]Selectivity, numRelations*(numRelations-1)/2)
 	for i := range selectivities {
-		selectivities[i] = make([]Selectivity, numRelations)
-		for j := range selectivities[i] {
-			selectivities[i][j] = -1
-		}
+		selectivities[i] = -1
 	}
 	return &Orderer{
 		numRelations:  numRelations,
@@ -30,33 +27,37 @@ func NewOrderer(numRelations int) *Orderer {
 }
 
 func (o *Orderer) GetSelectivity(a, b RelationID) Selectivity {
-	ab := o.selectivities[a-1][b-1]
-	ba := o.selectivities[b-1][a-1]
-	if ab != ba {
-		panic("selectivity should be commutative")
-	}
-	if ab == -1 {
+	sel := o.selectivities[o.indexPair(a, b)]
+	if sel == -1 {
 		return 1
 	}
-	return ab
+	return sel
+}
+
+func (o *Orderer) indexPair(a, b RelationID) int {
+	if a == b {
+		panic("can't index with self")
+	}
+	if a > b {
+		a, b = b, a
+	}
+	a--
+	b--
+	return int(b*(b-1)/2 + a)
 }
 
 func (o *Orderer) Adjacent(a, b RelationID) bool {
-	ab := o.selectivities[a-1][b-1]
-	ba := o.selectivities[b-1][a-1]
-	if ab != ba {
-		panic("selectivity should be commutative")
-	}
+	ab := o.selectivities[o.indexPair(a, b)]
 	return ab != -1
 }
 
 func (o *Orderer) AddPredicate(a, b RelationID, sel Selectivity) {
-	if o.selectivities[a-1][b-1] == -1 {
-		o.selectivities[a-1][b-1] = 1
-		o.selectivities[b-1][a-1] = 1
+	idx := o.indexPair(a, b)
+
+	if o.selectivities[idx] == -1 {
+		o.selectivities[idx] = 1
 	}
-	o.selectivities[a-1][b-1] *= sel
-	o.selectivities[b-1][a-1] *= sel
+	o.selectivities[idx] *= sel
 }
 
 func (o *Orderer) SetCardinality(a RelationID, c Cardinality) {
