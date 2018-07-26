@@ -140,13 +140,7 @@ func (o *IKKBZOrderer) Order() Sequence {
 	bestCost := float64(0)
 	var bestResult Sequence
 	for i := 1; i <= o.numRelations; i++ {
-		root := RelationID(i)
-		o.SetRoot(root)
-		result := o.solveWedge(root)
-		flattened := make(Sequence, 0)
-		for i := range result {
-			flattened = append(flattened, result[i]...)
-		}
+		flattened := o.SolveAtRoot(RelationID(i))
 		cost := o.C(flattened)
 		if bestCost == 0 || cost < bestCost {
 			bestCost = cost
@@ -154,6 +148,16 @@ func (o *IKKBZOrderer) Order() Sequence {
 		}
 	}
 	return bestResult
+}
+
+func (o *IKKBZOrderer) SolveAtRoot(r RelationID) Sequence {
+	o.SetRoot(r)
+	result := o.solveWedge(r)
+	flattened := make(Sequence, 0)
+	for i := range result {
+		flattened = append(flattened, result[i]...)
+	}
+	return flattened
 }
 
 func (o *IKKBZOrderer) solveWedge(r RelationID) []Sequence {
