@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/justinj/joinorder/join"
 	"github.com/justinj/joinorder/schema"
 )
 
 type IKKBZOrderer struct {
-	Orderer
+	s       *schema.Schema
 	root    schema.RelationID
 	parents []schema.RelationID
 }
 
 func NewIKKBZOrderer(s *schema.Schema) *IKKBZOrderer {
 	return &IKKBZOrderer{
-		Orderer: *NewOrderer(s),
+		s:       s,
 		parents: make([]schema.RelationID, s.NumRels()+1),
 	}
 }
@@ -138,7 +139,7 @@ func (o *IKKBZOrderer) ChildrenOf(r schema.RelationID) []schema.RelationID {
 // Order implementes the Ibaraki/Kameda algorithm for finding the optimal
 // left-deep join order.
 // TODO: this should be extended to full IKKBZ.
-func (o *IKKBZOrderer) Order() Sequence {
+func (o *IKKBZOrderer) Order(j *join.Forest) join.GroupID {
 	bestCost := float64(0)
 	var bestResult Sequence
 	for i := 1; i <= o.s.NumRels(); i++ {
@@ -149,7 +150,14 @@ func (o *IKKBZOrderer) Order() Sequence {
 			bestResult = flattened
 		}
 	}
-	return bestResult
+
+	l := j.AddLeaf(bestResult[0])
+	for i := 1; i < len(bestResult); i++ {
+		r := j.AddLeaf(bestResult[i])
+		l = j.AddJoin(l, r)
+	}
+
+	return l
 }
 
 func (o *IKKBZOrderer) SolveAtRoot(r schema.RelationID) Sequence {

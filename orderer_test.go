@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/justinj/joinorder/join"
 	"github.com/justinj/joinorder/schema"
 )
 
@@ -87,7 +88,7 @@ func TestBiggerJoin(t *testing.T) {
 	}
 }
 
-func TestIKKBZOrderer(t *testing.T) {
+func makeTestSchema() *schema.Schema {
 	builder := schema.NewBuilder()
 
 	a := builder.AddRelation("A", 100)
@@ -103,7 +104,31 @@ func TestIKKBZOrderer(t *testing.T) {
 	builder.AddPredicate(c, e, 0.05)
 	builder.AddPredicate(e, f, 0.0001)
 
-	o := NewIKKBZOrderer(builder.Build())
+	return builder.Build()
+}
+
+func TestDPSizeOrderer(t *testing.T) {
+	builder := schema.NewBuilder()
+
+	a := builder.AddRelation("A", 1000)
+	b := builder.AddRelation("B", 1000)
+	c := builder.AddRelation("C", 1000)
+	d := builder.AddRelation("D", 1000)
+
+	builder.AddPredicate(a, b, 0.0000001)
+	builder.AddPredicate(a, c, 0.5)
+	builder.AddPredicate(c, d, 0.0000001)
+
+	s := builder.Build()
+
+	o := NewDPSizeOrderer(s)
+
+	o.Order()
+}
+
+func TestIKKBZOrderer(t *testing.T) {
+	s := makeTestSchema()
+	o := NewIKKBZOrderer(s)
 
 	o.SetRoot(3)
 
@@ -191,10 +216,13 @@ func TestIKKBZOrderer(t *testing.T) {
 		}
 	}
 
-	expected := Sequence{2, 4, 1, 3, 5, 6}
-	actual := o.Order()
+	expected := "(((((B ⋈ D) ⋈ A) ⋈ C) ⋈ E) ⋈ F)"
 
-	if !expected.equal(actual) {
+	j := join.NewForest(s)
+	g := o.Order(j)
+	actual := j.FormatString(g)
+
+	if actual != expected {
 		t.Fatalf("expected %v, got %v", expected, actual)
 	}
 }
