@@ -3,22 +3,24 @@ package main
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/justinj/joinorder/schema"
 )
 
 type IKKBZOrderer struct {
 	Orderer
-	root    RelationID
-	parents []RelationID
+	root    schema.RelationID
+	parents []schema.RelationID
 }
 
-func NewIKKBZOrderer(numRels int) *IKKBZOrderer {
+func NewIKKBZOrderer(s *schema.Schema) *IKKBZOrderer {
 	return &IKKBZOrderer{
-		Orderer: *NewOrderer(numRels),
-		parents: make([]RelationID, numRels+1),
+		Orderer: *NewOrderer(s),
+		parents: make([]schema.RelationID, s.NumRels()+1),
 	}
 }
 
-func (o *IKKBZOrderer) SetRoot(r RelationID) {
+func (o *IKKBZOrderer) SetRoot(r schema.RelationID) {
 	o.root = r
 
 	for i := range o.parents {
@@ -27,19 +29,19 @@ func (o *IKKBZOrderer) SetRoot(r RelationID) {
 	curNode := r
 	for {
 		found := false
-		for i := 1; i <= o.numRelations; i++ {
-			if i == int(curNode) || o.parents[i] == curNode || o.parents[curNode] == RelationID(i) {
+		for i := 1; i <= o.s.NumRels(); i++ {
+			if i == int(curNode) || o.parents[i] == curNode || o.parents[curNode] == schema.RelationID(i) {
 				continue
 			}
 
-			if o.Adjacent(RelationID(i), curNode) {
+			if o.s.Adjacent(schema.RelationID(i), curNode) {
 				found = true
 				if o.parents[i] != 0 {
 					panic(fmt.Sprintf("query graph was not a tree: %v, i = %d, curNode = %d", o.parents, i, curNode))
 				}
 
 				o.parents[i] = curNode
-				curNode = RelationID(i)
+				curNode = schema.RelationID(i)
 				break
 			}
 		}
@@ -54,14 +56,14 @@ func (o *IKKBZOrderer) SetRoot(r RelationID) {
 	}
 }
 
-func (o *IKKBZOrderer) RootedSelectivity(r RelationID) Selectivity {
+func (o *IKKBZOrderer) RootedSelectivity(r schema.RelationID) schema.Selectivity {
 	if o.root == 0 {
 		panic("root not set")
 	}
 	if o.root == r {
 		return 1
 	}
-	return o.GetSelectivity(r, o.parents[r])
+	return o.s.Selectivity(r, o.parents[r])
 }
 
 func (o *IKKBZOrderer) String() string {
@@ -74,7 +76,7 @@ func (o *IKKBZOrderer) String() string {
 	return buf.String()
 }
 
-func (o *IKKBZOrderer) format(r RelationID, buf *bytes.Buffer, depth int) {
+func (o *IKKBZOrderer) format(r schema.RelationID, buf *bytes.Buffer, depth int) {
 	for i := 0; i < depth; i++ {
 		buf.WriteByte(' ')
 	}
@@ -82,7 +84,7 @@ func (o *IKKBZOrderer) format(r RelationID, buf *bytes.Buffer, depth int) {
 	for i := range o.parents {
 		if o.parents[i] == r {
 			buf.WriteByte(' ')
-			o.format(RelationID(i), buf, depth+1)
+			o.format(schema.RelationID(i), buf, depth+1)
 		}
 	}
 	for i := 0; i < depth; i++ {
@@ -96,7 +98,7 @@ func (o *IKKBZOrderer) format(r RelationID, buf *bytes.Buffer, depth int) {
 func (o *IKKBZOrderer) T(s Sequence) float64 {
 	p := float64(1)
 	for _, r := range s {
-		p *= float64(o.RootedSelectivity(r)) * float64(o.Cardinality(r))
+		p *= float64(o.RootedSelectivity(r)) * float64(o.s.Cardinality(r))
 	}
 	return p
 }
@@ -108,7 +110,7 @@ func (o *IKKBZOrderer) C(s Sequence) float64 {
 	cost := float64(0)
 	factor := float64(1)
 	for _, r := range s {
-		contribution := float64(o.RootedSelectivity(r)) * float64(o.Cardinality(r))
+		contribution := float64(o.RootedSelectivity(r)) * float64(o.s.Cardinality(r))
 		cost += factor * contribution
 		factor *= contribution
 	}
@@ -123,11 +125,11 @@ func (o *IKKBZOrderer) R(s Sequence) float64 {
 	return (o.T(s) - 1) / o.C(s)
 }
 
-func (o *IKKBZOrderer) ChildrenOf(r RelationID) []RelationID {
-	result := make([]RelationID, 0)
+func (o *IKKBZOrderer) ChildrenOf(r schema.RelationID) []schema.RelationID {
+	result := make([]schema.RelationID, 0)
 	for i := 1; i < len(o.parents); i++ {
 		if o.parents[i] == r {
-			result = append(result, RelationID(i))
+			result = append(result, schema.RelationID(i))
 		}
 	}
 	return result
@@ -139,8 +141,8 @@ func (o *IKKBZOrderer) ChildrenOf(r RelationID) []RelationID {
 func (o *IKKBZOrderer) Order() Sequence {
 	bestCost := float64(0)
 	var bestResult Sequence
-	for i := 1; i <= o.numRelations; i++ {
-		flattened := o.SolveAtRoot(RelationID(i))
+	for i := 1; i <= o.s.NumRels(); i++ {
+		flattened := o.SolveAtRoot(schema.RelationID(i))
 		cost := o.C(flattened)
 		if bestCost == 0 || cost < bestCost {
 			bestCost = cost
@@ -150,7 +152,7 @@ func (o *IKKBZOrderer) Order() Sequence {
 	return bestResult
 }
 
-func (o *IKKBZOrderer) SolveAtRoot(r RelationID) Sequence {
+func (o *IKKBZOrderer) SolveAtRoot(r schema.RelationID) Sequence {
 	o.SetRoot(r)
 	result := o.solveWedge(r)
 	flattened := make(Sequence, 0)
@@ -160,7 +162,7 @@ func (o *IKKBZOrderer) SolveAtRoot(r RelationID) Sequence {
 	return flattened
 }
 
-func (o *IKKBZOrderer) solveWedge(r RelationID) []Sequence {
+func (o *IKKBZOrderer) solveWedge(r schema.RelationID) []Sequence {
 	children := o.ChildrenOf(r)
 	chains := make([][]Sequence, len(children))
 	for i := range children {
