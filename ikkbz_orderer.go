@@ -139,7 +139,8 @@ func (o *IKKBZOrderer) ChildrenOf(r schema.RelationID) []schema.RelationID {
 // Order implementes the Ibaraki/Kameda algorithm for finding the optimal
 // left-deep join order.
 // TODO: this should be extended to full IKKBZ.
-func (o *IKKBZOrderer) Order(j *join.Forest) join.GroupID {
+func (o *IKKBZOrderer) Order() join.Join {
+	j := join.NewForest(o.s)
 	bestCost := float64(0)
 	var bestResult Sequence
 	for i := 1; i <= o.s.NumRels(); i++ {
@@ -157,7 +158,7 @@ func (o *IKKBZOrderer) Order(j *join.Forest) join.GroupID {
 		l = j.AddJoin(l, r)
 	}
 
-	return l
+	return j.AsJoin(l)
 }
 
 func (o *IKKBZOrderer) SolveAtRoot(r schema.RelationID) Sequence {

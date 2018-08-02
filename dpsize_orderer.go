@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/justinj/joinorder/join"
 	"github.com/justinj/joinorder/schema"
 	"github.com/justinj/joinorder/util"
@@ -24,7 +22,7 @@ func NewDPSizeOrderer(s *schema.Schema) *DPSizeOrderer {
 	}
 }
 
-func (o *DPSizeOrderer) Order() join.GroupID {
+func (o *DPSizeOrderer) Order() join.Join {
 	subproblems := [][]join.GroupID{nil, []join.GroupID{0}}
 
 	units := schema.NewRelSetMap()
@@ -82,7 +80,5 @@ func (o *DPSizeOrderer) Order() join.GroupID {
 		}
 	}
 
-	fmt.Println(o.j.FormatString(finalIdx))
-
-	return 0
+	return o.j.AsJoin(finalIdx)
 }

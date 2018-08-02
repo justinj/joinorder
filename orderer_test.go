@@ -3,7 +3,6 @@ package main
 import (
 	"testing"
 
-	"github.com/justinj/joinorder/join"
 	"github.com/justinj/joinorder/schema"
 )
 
@@ -123,7 +122,12 @@ func TestDPSizeOrderer(t *testing.T) {
 
 	o := NewDPSizeOrderer(s)
 
-	o.Order()
+	j := o.Order()
+
+	expected := "((A ⋈ B) ⋈ (C ⋈ D))"
+	if j.String() != expected {
+		t.Fatalf("expected %q, got %q", expected, j)
+	}
 }
 
 func TestIKKBZOrderer(t *testing.T) {
@@ -218,9 +222,8 @@ func TestIKKBZOrderer(t *testing.T) {
 
 	expected := "(((((B ⋈ D) ⋈ A) ⋈ C) ⋈ E) ⋈ F)"
 
-	j := join.NewForest(s)
-	g := o.Order(j)
-	actual := j.FormatString(g)
+	j := o.Order()
+	actual := j.String()
 
 	if actual != expected {
 		t.Fatalf("expected %v, got %v", expected, actual)
