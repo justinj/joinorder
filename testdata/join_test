@@ -1,20 +1,4 @@
-ikkbz
-Table1(100).
-Table2(1000000).
-Table3(1000).
-Table4(15000).
-Table5(50).
-Where(Table1, Table2, 0.01).
-Where(Table1, Table3, 1).
-Where(Table3, Table4, 0.0333).
-Where(Table3, Table5, 0.1).
+run
+ikkbz(bushy).
 ----
-Table1(100).
-Table2(1000000).
-Table3(1000).
-Table4(15000).
-Table5(50).
-Where(Table1, Table2, 0.01).
-Where(Table1, Table3, 1).
-Where(Table3, Table4, 0.0333).
-Where(Table3, Table5, 0.1).
+(((D ⋈ C) ⋈ B) ⋈ A)

@@ -13,6 +13,14 @@ type Cardinality float64
 
 type RelSet = util.FastIntSet
 
+func S(args ...RelationID) RelSet {
+	var s util.FastIntSet
+	for _, r := range args {
+		s.Add(int(r))
+	}
+	return s
+}
+
 type Relation struct {
 	Name RelationName
 	id   RelationID
@@ -70,6 +78,9 @@ func (b *Builder) relation(x RelationID) Relation {
 
 func (b *Builder) AddPredicate(x, y RelationID, sel Selectivity) {
 	b.selectivities[pair(x, y)] = sel
+}
+
+func (b *Builder) SetCardinality(rels RelSet, cardinality Cardinality) {
 }
 
 func (b *Builder) Build() *Schema {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/justinj/joinorder/datadriven"
+	"github.com/justinj/joinorder/queries"
 )
 
 // this will be too much effort for now.
@@ -16,7 +17,6 @@ func parseSchema(input string) {
 }
 
 func TestData(t *testing.T) {
-	t.Skip()
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
@@ -25,8 +25,10 @@ func TestData(t *testing.T) {
 	for _, file := range files {
 		datadriven.RunTest(t, path+"/"+file.Name(), func(d *datadriven.TestData) string {
 			switch d.Cmd {
-			case "ikkbz":
-				return d.Input
+			case "run":
+				s := queries.QueryByName("bushy")
+				orderer := NewIKKBZOrderer(s)
+				return orderer.Order().String() + "\n"
 			}
 			panic("unknown command " + d.Cmd)
 		})
